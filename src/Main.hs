@@ -8,21 +8,53 @@ import Reflex
 import Reflex.Dom
 
 import Data.Monoid
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromMaybe)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Time.Clock (UTCTime)
+import Data.Time.Clock (UTCTime, getCurrentTime, diffUTCTime)
 import Data.Time.Format (parseTimeM, defaultTimeLocale)
 
 import Safe (readMay)
 
 main :: IO ()
-main = mainWidget $ do
-  counter
-  el "hr" $ pure ()
-  temperature
-  el "hr" $ pure ()
-  flight
+main = do
+  tStart <- getCurrentTime
+  mainWidget $ do
+    counter
+    el "hr" $ pure ()
+    temperature
+    el "hr" $ pure ()
+    flight
+    el "hr" $ pure ()
+    timer tStart
+    el "hr" $ pure ()
+    crud
+
+--performance--------------------------
+
+perf :: MonadWidget t m => m ()
+perf = do
+  val <- textInput def
+  let x = fmapMaybe (readMay :: String -> Maybe Int) $ _textInput_input val
+  dynMap <- foldDyn (\n _ -> Map.fromList $ zip [1..n] [1..n]) Map.empty x
+  el "table" $ list dynMap (const $ el "tr" $ list dynMap (const $ el "td" counter))
+  pure ()
+
+--widgets------------------------------
+
+doubleInput :: MonadWidget t m => TextInputConfig t -> m (Event t Double)
+doubleInput conf = do
+    c <- textInput conf
+    pure $ fmapMaybe readMay $ _textInput_input c
+
+maybeButton :: MonadWidget t m => Dynamic t Bool -> String -> m (Event t ())
+maybeButton enabled label = do
+  attrs <- mapDyn (\e -> if e
+      then mempty
+      else "disabled" =: "disabled"
+    ) enabled
+  (btn, _) <- elDynAttr' "button" attrs $ text label
+  pure $ domEvent Click btn
 
 --1------------------------------------
 
@@ -42,23 +74,17 @@ counter = el "div" $ mdo
 temperature :: MonadWidget t m => m ()
 temperature = el "div" $ mdo
 
-  c <- textInput $ def & textInputConfig_setValue .~ cStr
-  let cNum = fmapMaybe mReadDouble $ _textInput_input c
-      fComp = (\x -> x * 9/5 + 32) <$> cNum
+  cNum <- doubleInput $ def & textInputConfig_setValue .~ cStr
+  let fComp = (\x -> x * 9/5 + 32) <$> cNum
       fStr = show <$> fComp
 
   text "Celsius = "
 
-  f <- textInput $ def & textInputConfig_setValue .~ fStr
-  let fNum = fmapMaybe mReadDouble $ _textInput_input f
-      cComp = (\x -> x * 5/9 - 32) <$> fNum
+  fNum <- doubleInput $ def & textInputConfig_setValue .~ fStr
+  let cComp = (\x -> x * 5/9 - 32) <$> fNum
       cStr = show <$> cComp
 
   text "Fahrenheit"
-
-  where
-    mReadDouble :: String -> Maybe Double
-    mReadDouble = readMay
 
 --3------------------------------------
 
@@ -94,14 +120,10 @@ flight = el "div" $ mdo
       _ ->
         Nothing
     ) (_dropdown_value flightType) mStart mEnd
-  bookAttrs <- mapDyn (\msg ->
-      if isJust msg
-        then mempty
-        else "disabled" =: "disabled"
-    ) bookMsg
-  (bookBtn, _) <- elDynAttr' "button" bookAttrs $ text "Book!"
+  bookEnabled <- mapDyn isJust bookMsg
+  bookBtn <- maybeButton bookEnabled "Book!"
 
-  resp <- holdDyn Nothing $ tagDyn bookMsg (domEvent Click bookBtn)
+  resp <- holdDyn Nothing $ tagDyn bookMsg bookBtn
   respStr <- mapDyn show resp
 
   dynText respStr
@@ -121,6 +143,84 @@ flight = el "div" $ mdo
           <> if e then mempty else "disabled" =: "disabled"
         ) date enabled
       pure date
+
+--4------------------------------------
+
+-- | TODO: Stop timer when limit is reached
+timer :: MonadWidget t m => UTCTime -> m ()
+timer t0 = el "div" $ mdo
+  current <- fmap _tickInfo_lastUTC <$> tickLossy 0.1 t0
+  currentDyn <- holdDyn t0 current
+
+  limit <- doubleInput def
+  limitDyn <- holdDyn 10.0 limit
+  elapsed <- combineDyn3 (\c s l ->
+      show $ min (diffUTCTime c s) (realToFrac l)
+    ) currentDyn startDyn limitDyn
+
+  dynText elapsed
+
+  start <- tagDyn currentDyn <$> button "Reset"
+  startDyn <- holdDyn t0 start
+  pure ()
+
+--5------------------------------------
+
+data Person = Person
+  { personName :: String
+  , personSurname :: String
+  }
+
+instance Show Person where
+  show (Person name surname) = surname <> ", " <> name
+
+data DB = DB
+  { dbPersons :: Map Int Person
+  , dbSelected :: Int
+  }
+
+initialDB :: DB
+initialDB = DB Map.empty 0
+
+data DBCommand
+  = DBInsert Person
+  | DBUpdate Int Person
+  | DBDelete Int
+  | DBSelect Int
+
+updateDB :: [DBCommand] -> DB -> DB
+updateDB cmds db = foldl go db cmds
+  where
+    go (DB persons sel) cmd = case cmd of
+      DBInsert p   -> DB (Map.insert (maximum (Map.keys persons) + 1) p persons) sel
+      DBUpdate i p -> DB (Map.update (const $ Just p) i persons) sel
+      DBDelete i   -> DB (Map.delete i persons) sel
+      DBSelect i   -> DB persons i
+
+selected :: DB -> Maybe Int
+selected (DB persons sel) =
+  if Map.member sel persons
+    then Just sel
+    else Nothing
+
+crud :: MonadWidget t m => m ()
+crud = el "div" $ mdo
+  name <- textInput def
+  surname <- textInput def
+  person <- combineDyn Person (_textInput_value name) (_textInput_value surname)
+
+  db <- foldDyn updateDB initialDB updates
+  personSelected <- mapDyn selected db
+  isPersonSelected <- mapDyn isJust personSelected
+
+  delete <- maybeButton isPersonSelected "Delete"
+  update <- maybeButton isPersonSelected "Update"
+  let updates = mconcat
+        [ (\mi -> [DBDelete $ fromMaybe 0 mi]) <$> tagDyn personSelected delete
+        ]
+
+  pure ()
+
 
 --utils--------------------------------
 
