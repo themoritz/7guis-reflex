@@ -1,6 +1,7 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE FlexibleContexts    #-}
 
 module Main where
 
@@ -8,7 +9,7 @@ import Reflex
 import Reflex.Dom
 
 import Data.Monoid
-import Data.Maybe (isJust, fromMaybe)
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Time.Clock (UTCTime, getCurrentTime, diffUTCTime)
@@ -55,6 +56,16 @@ maybeButton enabled label = do
     ) enabled
   (btn, _) <- elDynAttr' "button" attrs $ text label
   pure $ domEvent Click btn
+
+selectableList :: (MonadWidget t m, Ord k)
+           => Dynamic t (Maybe k) -> Dynamic t (Map k v)
+           -> (Dynamic t v -> Dynamic t Bool -> m (Event t a))
+           -> m (Event t k)
+selectableList selection elems mkEntry = do
+  selectEntry <- listWithKey elems $ \k v -> do
+    isSelected <- forDyn selection $ \s -> s == Just k
+    fmap (const k) <$> mkEntry v isSelected
+  switchPromptlyDyn <$> mapDyn (leftmost . Map.elems) selectEntry
 
 --1------------------------------------
 
@@ -177,10 +188,11 @@ instance Show Person where
 data DB = DB
   { dbPersons :: Map Int Person
   , dbSelected :: Int
-  }
+  , dbIndex :: Int
+  } deriving (Show)
 
 initialDB :: DB
-initialDB = DB Map.empty 0
+initialDB = DB Map.empty 0 0
 
 data DBCommand
   = DBInsert Person
@@ -191,14 +203,14 @@ data DBCommand
 updateDB :: [DBCommand] -> DB -> DB
 updateDB cmds db = foldl go db cmds
   where
-    go (DB persons sel) cmd = case cmd of
-      DBInsert p   -> DB (Map.insert (maximum (Map.keys persons) + 1) p persons) sel
-      DBUpdate i p -> DB (Map.update (const $ Just p) i persons) sel
-      DBDelete i   -> DB (Map.delete i persons) sel
-      DBSelect i   -> DB persons i
+    go (DB persons sel ind) cmd = case cmd of
+      DBInsert p   -> DB (Map.insert ind p persons) sel (ind + 1)
+      DBUpdate i p -> DB (Map.update (const $ Just p) i persons) sel ind
+      DBDelete i   -> DB (Map.delete i persons) sel ind
+      DBSelect i   -> DB persons i ind
 
 selected :: DB -> Maybe Int
-selected (DB persons sel) =
+selected (DB persons sel _) =
   if Map.member sel persons
     then Just sel
     else Nothing
@@ -210,17 +222,31 @@ crud = el "div" $ mdo
   person <- combineDyn Person (_textInput_value name) (_textInput_value surname)
 
   db <- foldDyn updateDB initialDB updates
+  persons <- mapDyn dbPersons db
   personSelected <- mapDyn selected db
   isPersonSelected <- mapDyn isJust personSelected
 
-  delete <- maybeButton isPersonSelected "Delete"
+  select <- el "ul" $ selectableList personSelected persons $ \p s -> do
+    attrs <- mapDyn (\s' -> "style" =: if s' then "color: blue" else "") s
+    (e, _) <- elDynAttr' "li" attrs $ display p
+    pure $ domEvent Click e
+
+  create <- button "Create"
   update <- maybeButton isPersonSelected "Update"
+  delete <- maybeButton isPersonSelected "Delete"
+
+  personToUpdate <- combineDyn (,) personSelected person
   let updates = mconcat
-        [ (\mi -> [DBDelete $ fromMaybe 0 mi]) <$> tagDyn personSelected delete
+        [ (\i -> [DBDelete i]) <$> fmapMaybe id (tag (current personSelected) delete)
+        , fmapMaybe (\(mSel, p) -> case mSel of
+              Nothing -> Nothing
+              Just sel -> Just [DBUpdate sel p]
+            ) $ tag (current personToUpdate) update
+        , (\p -> [DBInsert p]) <$> tag (current person) create
+        , (\i -> [DBSelect i]) <$> select
         ]
 
   pure ()
-
 
 --utils--------------------------------
 
