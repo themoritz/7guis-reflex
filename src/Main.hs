@@ -200,14 +200,12 @@ data DBCommand
   | DBDelete Int
   | DBSelect Int
 
-updateDB :: [DBCommand] -> DB -> DB
-updateDB cmds db = foldl go db cmds
-  where
-    go (DB persons sel ind) cmd = case cmd of
-      DBInsert p   -> DB (Map.insert ind p persons) sel (ind + 1)
-      DBUpdate i p -> DB (Map.update (const $ Just p) i persons) sel ind
-      DBDelete i   -> DB (Map.delete i persons) sel ind
-      DBSelect i   -> DB persons i ind
+updateDB :: DBCommand -> DB -> DB
+updateDB cmd (DB persons sel ind) = case cmd of
+  DBInsert p   -> DB (Map.insert ind p persons) sel (ind + 1)
+  DBUpdate i p -> DB (Map.update (const $ Just p) i persons) sel ind
+  DBDelete i   -> DB (Map.delete i persons) sel ind
+  DBSelect i   -> DB persons i ind
 
 selected :: DB -> Maybe Int
 selected (DB persons sel _) =
@@ -228,24 +226,22 @@ crud = el "div" $ mdo
 
   select <- el "ul" $ selectableList personSelected persons $ \p s -> do
     attrs <- mapDyn (\s' -> "style" =: if s' then "color: blue" else "") s
-    (e, _) <- elDynAttr' "li" attrs $ display p
-    pure $ domEvent Click e
+    domEvent Click . fst <$> elDynAttr' "li" attrs (display p)
 
   create <- button "Create"
   update <- maybeButton isPersonSelected "Update"
   delete <- maybeButton isPersonSelected "Delete"
 
   personToUpdate <- combineDyn (,) personSelected person
-  let updates = mconcat
-        [ (\i -> [DBDelete i]) <$> fmapMaybe id (tag (current personSelected) delete)
+  let updates = leftmost
+        [ DBDelete <$> fmapMaybe id (tag (current personSelected) delete)
         , fmapMaybe (\(mSel, p) -> case mSel of
               Nothing -> Nothing
-              Just sel -> Just [DBUpdate sel p]
+              Just sel -> Just $ DBUpdate sel p
             ) $ tag (current personToUpdate) update
-        , (\p -> [DBInsert p]) <$> tag (current person) create
-        , (\i -> [DBSelect i]) <$> select
+        , DBInsert <$> tag (current person) create
+        , DBSelect <$> select
         ]
-
   pure ()
 
 --utils--------------------------------
