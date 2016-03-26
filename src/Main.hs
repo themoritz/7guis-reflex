@@ -21,15 +21,18 @@ main :: IO ()
 main = do
   tStart <- getCurrentTime
   mainWidget $ do
+    header "Counter"
     counter
-    el "hr" $ pure ()
+    header "Temperature Converter"
     temperature
-    el "hr" $ pure ()
+    header "Flight Booker"
     flight
-    el "hr" $ pure ()
+    header "Timer"
     timer tStart
-    el "hr" $ pure ()
+    header "CRUD"
     crud
+    header "Circle Drawer"
+    circle
 
 --performance--------------------------
 
@@ -66,6 +69,9 @@ selectableList selection elems mkEntry = do
     isSelected <- forDyn selection $ \s -> s == Just k
     fmap (const k) <$> mkEntry v isSelected
   switchPromptlyDyn <$> mapDyn (leftmost . Map.elems) selectEntry
+
+header :: MonadWidget t m => String -> m ()
+header = el "h3" . text
 
 --1------------------------------------
 
@@ -243,6 +249,56 @@ crud = el "div" $ mdo
         , DBSelect <$> select
         ]
   pure ()
+
+
+--6------------------------------------
+
+data Circle = Circle
+  { circleX      :: Int
+  , circleY      :: Int
+  , circleRadius :: Int
+  }
+
+data Circles = Circles
+  { circlesMap      :: Map Int Circle
+  , circlesIndex    :: Int
+  }
+
+initialCircles :: Circles
+initialCircles = Circles Map.empty 0
+
+data CircleCommand
+  = CirclePlace Circle
+  | CircleAdjust Int Int   -- id radius
+
+updateCircles :: CircleCommand -> Circles -> Circles
+updateCircles cmd (Circles circles i) = case cmd of
+  CirclePlace c      -> Circles (Map.insert i c circles) (i + 1)
+  CircleAdjust sel r -> Circles (Map.update (\c -> Just $ c { circleRadius = r }) sel circles) i
+
+data Stack a = Stack
+  { stackStack     :: [a]
+  , stackUndoSteps :: Int
+  }
+
+data StackCommand a
+  = StackPush a
+  | StackUndo
+  | StackRedo
+
+updateStack :: StackCommand a -> Stack a -> Stack a
+updateStack cmd (Stack stack undo) = case cmd of
+  StackPush x -> Stack (x:drop undo stack) 0
+  StackUndo   -> Stack stack (undo + 1)
+  StackRedo   -> Stack stack (undo - 1)
+
+applyStack :: Stack CircleCommand -> Circles
+applyStack (Stack stack undos) =
+  foldr updateCircles initialCircles $ drop undos stack
+
+circle :: MonadWidget t m => m ()
+circle = el "div" $ do
+  text "Circle"
 
 --utils--------------------------------
 
