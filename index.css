@@ -1,0 +1,16 @@
+body, input, button, select {
+  font-size: 16pt;
+  line-height: 1.6;
+  font-weight: 400;
+  font-family: "Raleway", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #222;
+}
+
+input, button, select {
+  margin: 5px;
+}
+
+h1 {
+  margin-bottom: 0px;
+  font-size: 20pt;
+}
