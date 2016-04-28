@@ -13,7 +13,7 @@ import qualified Data.Map         as Map
 import           Data.Time.Clock  (UTCTime, getCurrentTime, diffUTCTime)
 import           Data.Time.Format (parseTimeM, defaultTimeLocale)
 
-import Safe (readMay)
+import           Text.Read        (readMaybe)
 
 main :: IO ()
 main = do
@@ -39,7 +39,7 @@ main = do
 doubleInput :: MonadWidget t m => TextInputConfig t -> m (Event t Double)
 doubleInput conf = do
     c <- textInput conf
-    pure $ fmapMaybe readMay $ _textInput_input c
+    pure $ fmapMaybe readMaybe $ _textInput_input c
 
 maybeButton :: MonadWidget t m
             => Dynamic t Bool
@@ -48,9 +48,7 @@ maybeButton :: MonadWidget t m
             -- ^ Static button label
             -> m (Event t ())
 maybeButton enabled label = do
-    attrs <- forDyn enabled $ \e -> if e
-        then mempty
-        else "disabled" =: "disabled"
+    attrs <- forDyn enabled $ \e -> monoidGuard (not e) $ "disabled" =: "disabled"
     (btn, _) <- elDynAttr' "button" attrs $ text label
     pure $ domEvent Click btn
 
@@ -58,13 +56,13 @@ datePicker :: MonadWidget t m
            => Dynamic t Bool
            -- ^ Widget enabled?
            -> m (Dynamic t (Maybe UTCTime))
-datePicker enabled = mdo
-    raw <- textInput $ def & textInputConfig_attributes .~ attrs
-    date <- mapDyn (parseTimeM True defaultTimeLocale "%F") $ _textInput_value raw
-    attrs <- dynCombine date enabled $ \d e ->
-        "style" =: (if isJust d then "" else "color: red")
-        <> if e then mempty else "disabled" =: "disabled"
-    pure date
+datePicker enabled = do
+    rec raw <- textInput $ def & textInputConfig_attributes .~ attrs
+        date <- mapDyn (parseTimeM True defaultTimeLocale "%F") $ _textInput_value raw
+        attrs <- dynCombine date enabled $ \d e ->
+            monoidGuard (isNothing d) ("style" =: "color: red") <>
+            monoidGuard (not e) ("disabled" =: "disabled")
+    return date
 
 selectableList :: (MonadWidget t m, Ord k)
                => Dynamic t (Maybe k)
@@ -87,14 +85,14 @@ header = el "h1" . text
 --1------------------------------------
 
 counter :: MonadWidget t m => m ()
-counter = el "div" $ mdo
-
-    text "Clicks: "
-    dynText cStr
+counter = el "div" $ do
 
     click <- button "Click"
     c <- count click
     cStr <- mapDyn (show :: Int -> String) c
+
+    text "Clicks: "
+    dynText cStr
 
     pure ()
 
@@ -102,17 +100,12 @@ counter = el "div" $ mdo
 
 temperature :: MonadWidget t m => m ()
 temperature = el "div" $ mdo
-
-    cNum <- doubleInput $ def & textInputConfig_setValue .~ cStr
-    let fComp = (\x -> x * 9/5 + 32) <$> cNum
-        fStr = show <$> fComp
-
+    celsius <- doubleInput $ def & textInputConfig_setValue
+        .~ ((\x -> show $ (x - 32) * 5/9) <$> fahrenheit)
     text "Celsius = "
 
-    fNum <- doubleInput $ def & textInputConfig_setValue .~ fStr
-    let cComp = (\x -> x * 5/9 - 32) <$> fNum
-        cStr = show <$> cComp
-
+    fahrenheit <- doubleInput $ def & textInputConfig_setValue
+        .~ ((\x -> show $ x * 9/5 + 32) <$> celsius)
     text "Fahrenheit"
 
 --3------------------------------------
@@ -129,7 +122,7 @@ flightTypeMap = Map.fromList
   ]
 
 flight :: MonadWidget t m => m ()
-flight = el "div" $ mdo
+flight = el "div" $ do
 
     flightType <- dropdown OneWay (constDyn flightTypeMap) def
 
@@ -162,20 +155,21 @@ flight = el "div" $ mdo
 
 -- | TODO: Stop timer when limit is reached
 timer :: MonadWidget t m => UTCTime -> m ()
-timer t0 = el "div" $ mdo
+timer t0 = el "div" $ do
     current <- fmap _tickInfo_lastUTC <$> tickLossy 0.1 t0
     currentDyn <- holdDyn t0 current
 
     text "Limit:"
     limit <- doubleInput def
     limitDyn <- holdDyn 10.0 limit
-    elapsed <- dynCombine3 currentDyn startDyn limitDyn $ \c s l ->
-        show $ min (diffUTCTime c s) (realToFrac l)
 
-    dynText elapsed
+    rec elapsed <- dynCombine3 currentDyn startDyn limitDyn $ \c s l ->
+            show $ min (diffUTCTime c s) (realToFrac l)
 
-    start <- tagDyn currentDyn <$> button "Reset"
-    startDyn <- holdDyn t0 start
+        dynText elapsed
+
+        start <- tagDyn currentDyn <$> button "Reset"
+        startDyn <- holdDyn t0 start
     pure ()
 
 --5------------------------------------
@@ -216,37 +210,37 @@ selected (DB persons sel _) = if Map.member sel persons
     else Nothing
 
 crud :: MonadWidget t m => m ()
-crud = el "div" $ mdo
+crud = el "div" $ do
     text "Name:"
     name <- textInput def
     text "Surname:"
     surname <- textInput def
     person <- combineDyn Person (_textInput_value name) (_textInput_value surname)
 
-    db <- foldDyn updateDB initialDB updates
-    persons <- mapDyn dbPersons db
-    selectedPerson <- mapDyn selected db
-    isPersonSelected <- mapDyn isJust selectedPerson
+    rec db <- foldDyn updateDB initialDB updates
+        persons <- mapDyn dbPersons db
+        selectedPerson <- mapDyn selected db
+        isPersonSelected <- mapDyn isJust selectedPerson
 
-    select <- el "ul" $ selectableList selectedPerson persons $ \sel p -> do
-      attrs <- mapDyn (\s -> "style" =: if s then "font-weight: bold" else "") sel
-      domEvent Click . fst <$> elDynAttr' "li" attrs (display p)
+        select <- el "ul" $ selectableList selectedPerson persons $ \sel p -> do
+          attrs <- mapDyn (\s -> monoidGuard s $ "style" =: "font-weight: bold") sel
+          domEvent Click . fst <$> elDynAttr' "li" attrs (display p)
 
-    createClick <- button "Create"
-    updateClick <- maybeButton isPersonSelected "Update"
-    deleteClick <- maybeButton isPersonSelected "Delete"
+        createClick <- button "Create"
+        updateClick <- maybeButton isPersonSelected "Update"
+        deleteClick <- maybeButton isPersonSelected "Delete"
 
-    personToUpdate <- combineDyn (,) selectedPerson person
+        personToUpdate <- combineDyn (,) selectedPerson person
 
-    let updates = leftmost
-          [ DBDelete <$> fmapMaybe id (tag (current selectedPerson) deleteClick)
-          , fmapMaybe (\(mSel, p) -> case mSel of
-                Nothing -> Nothing
-                Just sel -> Just $ DBUpdate sel p
-              ) $ tag (current personToUpdate) updateClick
-          , DBInsert <$> tag (current person) createClick
-          , DBSelect <$> select
-          ]
+        let updates = leftmost
+              [ DBDelete <$> fmapMaybe id (tag (current selectedPerson) deleteClick)
+              , fmapMaybe (\(mSel, p) -> case mSel of
+                    Nothing -> Nothing
+                    Just sel -> Just $ DBUpdate sel p
+                  ) $ tag (current personToUpdate) updateClick
+              , DBInsert <$> tag (current person) createClick
+              , DBSelect <$> select
+              ]
 
     pure ()
 
@@ -300,6 +294,7 @@ circle = el "div" $ do
     (svg, _) <- svgAttr' "svg" ("width" =: "100" <> "height" =: "100") $ do
         svgAttr "circle" ("cx" =: "50" <> "cy" =: "50" <> "r" =: "10") $ pure ()
         svgAttr "circle" ("cx" =: "20" <> "cy" =: "60" <> "r" =: "15") $ pure ()
+    -- TODO: Get coordinates relative to SVG element
     coords <- holdDyn "" $ show <$> domEvent Mousemove svg
     dynText coords
     pure ()
@@ -330,3 +325,6 @@ dynCombine3 :: (Reflex t, MonadHold t m)
 dynCombine3 da db dc f = do
   dg <- combineDyn f da db
   combineDyn (\g c -> g c) dg dc
+
+monoidGuard :: Monoid a => Bool -> a -> a
+monoidGuard p a = if p then a else mempty
