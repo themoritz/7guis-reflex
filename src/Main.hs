@@ -6,6 +6,7 @@ module Main where
 import           Reflex
 import           Reflex.Dom
 
+import           Data.Decimal
 import           Data.Monoid
 import           Data.Maybe
 import           Data.Map         (Map)
@@ -36,8 +37,8 @@ main = do
 
 --widgets------------------------------
 
-doubleInput :: MonadWidget t m => TextInputConfig t -> m (Event t Double)
-doubleInput conf = do
+readableInput :: (MonadWidget t m, Read a) => TextInputConfig t -> m (Event t a)
+readableInput conf = do
     c <- textInput conf
     pure $ fmapMaybe readMaybe $ _textInput_input c
 
@@ -100,12 +101,12 @@ counter = el "div" $ do
 
 temperature :: MonadWidget t m => m ()
 temperature = el "div" $ mdo
-    celsius <- doubleInput $ def & textInputConfig_setValue
-        .~ ((\x -> show $ (x - 32) * 5/9) <$> fahrenheit)
+    celsius <- readableInput $ def & textInputConfig_setValue
+        .~ ((\x -> show $ ((x :: Double) - 32) * 5/9) <$> fahrenheit)
     text "Celsius = "
 
-    fahrenheit <- doubleInput $ def & textInputConfig_setValue
-        .~ ((\x -> show $ x * 9/5 + 32) <$> celsius)
+    fahrenheit <- readableInput $ def & textInputConfig_setValue
+        .~ ((\x -> show $ (x :: Double) * 9/5 + 32) <$> celsius)
     text "Fahrenheit"
 
 --3------------------------------------
@@ -153,23 +154,32 @@ flight = el "div" $ do
 
 --4------------------------------------
 
--- | TODO: Stop timer when limit is reached
+data TimerEvent
+  = TimerTick Decimal -- limit
+  | TimerReset
+
 timer :: MonadWidget t m => UTCTime -> m ()
 timer t0 = el "div" $ do
-    current <- fmap _tickInfo_lastUTC <$> tickLossy 0.1 t0
-    currentDyn <- holdDyn t0 current
+    tick <- tickLossy 0.1 t0
 
     text "Limit:"
-    limit <- doubleInput def
+    limit <- readableInput def
     limitDyn <- holdDyn 10.0 limit
 
-    rec elapsed <- dynCombine3 currentDyn startDyn limitDyn $ \c s l ->
-            show $ min (diffUTCTime c s) (realToFrac l)
+    rec let events = leftmost
+              [ (\(limit', _) -> TimerTick limit') <$> attachDyn limitDyn tick
+              , const TimerReset <$> reset
+              ]
 
-        dynText elapsed
+        elapsed <- foldDyn (\ev current -> case ev of
+                TimerTick limit' -> if current + 0.1 <= limit' then current + 0.1 else current
+                TimerReset       -> 0.0
+            ) (0.0 :: Decimal) events
 
-        start <- tagDyn currentDyn <$> button "Reset"
-        startDyn <- holdDyn t0 start
+        elapsedText <- mapDyn show elapsed
+        dynText elapsedText
+
+        reset <- button "Reset"
     pure ()
 
 --5------------------------------------

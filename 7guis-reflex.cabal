@@ -17,6 +17,7 @@ executable 7guis-reflex
                      , OverloadedStrings
   build-depends:       base
                      , containers
+                     , Decimal
                      , ghcjs-dom
                      , reflex
                      , reflex-dom
