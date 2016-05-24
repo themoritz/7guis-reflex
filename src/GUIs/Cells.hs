@@ -5,12 +5,20 @@ module GUIs.Cells
 import           Reflex
 import           Reflex.Dom
 
+import Data.Either
+
 import Text.Parsec
 import qualified Text.Parsec.Token as P
 import Text.Parsec.Expr
 import Text.Parsec.Language (emptyDef)
 import Text.Parsec.Char
 import Text.Parsec.String (Parser)
+
+data Ref
+    = Ref Integer Integer
+    deriving (Show)
+
+-- Expressions
 
 data BinOp
     = Plus
@@ -24,11 +32,14 @@ data UnOp
     deriving (Show)
 
 data Expr
-    = ERef Integer Integer
+    = ERef Ref
     | EBinOp BinOp Expr Expr
     | EUnOp UnOp Expr
     | ENumber Double
+    | EEmpty
     deriving (Show)
+
+-- Parser
 
 lexer = P.makeTokenParser emptyDef
     { P.reservedOpNames = ["+", "-", "*", "/"]
@@ -51,7 +62,10 @@ ref = braces $ do
     i <- natural
     lexeme $ char ','
     j <- natural
-    pure $ ERef i j
+    pure $ ERef $ Ref i j
+
+empty :: Parser Expr
+empty = pure EEmpty
 
 binary name op = Infix (reservedOp name *> pure (EBinOp op)) AssocLeft
 prefix name op = Prefix $ reservedOp name *> pure (EUnOp op)
@@ -69,10 +83,42 @@ expr = buildExpressionParser table terms
         <?> "term"
 
 parseExpr :: String -> Either ParseError Expr
-parseExpr = parse (whiteSpace *> expr <* eof) ""
+parseExpr = parse (whiteSpace *> (expr <|> empty) <* eof) ""
+
+-- Evaluator
+
+data EvalError
+    = EvalRefNotFound Ref
+    | EvalDivByZero
+    deriving (Show)
+
+-- Single cell of the spreadsheet
+
+data CellResult
+    = CellErrorParse ParseError
+    | CellErrorEval EvalError
+    | CellResult Double
+    | CellEmpty
+    deriving (Show)
+
+cell :: MonadWidget t m
+     => Event t (Either EvalError Double)
+     -> m (Event t Expr)
+cell evalEv = el "div" $ do
+    raw <- textInput def
+    let eExpr = parseExpr <$> _textInput_input raw
+        events  = leftmost
+          [ either CellErrorEval CellResult <$> evalEv
+          , fmapMaybe (either (Just . CellErrorParse) (const Nothing)) eExpr
+          ]
+    cellResult <- holdDyn CellEmpty events
+    cellResultText <- mapDyn show cellResult
+    dynText cellResultText
+    pure $ fmapMaybe (either (const Nothing) Just) eExpr
 
 cells :: MonadWidget t m => m ()
 cells = el "div" $ do
-    raw <- textInput def
-    eExpr <- mapDyn (show . parseExpr) $ _textInput_value raw
-    dynText eExpr
+  expr <- cell never
+  dynExpr <- holdDyn "" (show <$> expr)
+  dynText dynExpr
+  pure ()
