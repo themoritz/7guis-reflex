@@ -12,13 +12,22 @@ cabal-version:       >=1.10
 
 executable 7guis-reflex
   main-is:             Main.hs
-  -- other-modules:
+  other-modules:       Utils
+                     , Widgets
+                     , GUIs.Counter
+                     , GUIs.TemperatureConverter
+                     , GUIs.FlightBooker
+                     , GUIs.Timer
+                     , GUIs.CRUD
+                     , GUIs.CircleDrawer
+                     , GUIs.Cells
   other-extensions:    TemplateHaskell
                      , OverloadedStrings
   build-depends:       base
                      , containers
                      , Decimal
                      , ghcjs-dom
+                     , parsec
                      , reflex
                      , reflex-dom
                      , safe
