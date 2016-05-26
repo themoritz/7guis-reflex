@@ -1,3 +1,5 @@
+{-# LANGUAGE RecursiveDo #-}
+
 module GUIs.Cells
     ( cells
     ) where
@@ -29,6 +31,8 @@ import Text.Parsec.String (Parser)
 
 import GUIs.Cells.Sheet
 import GUIs.Cells.Types
+
+import Utils
 
 -- Parser
 
@@ -79,8 +83,10 @@ parseExpr = parse (whiteSpace *> (expr <|> empty) <* eof) ""
 
 -- Evaluator
 
-updateSheetState :: Coords -> Expr -> SheetState -> (SheetState, Either String (Map Coords (Either EvalError Double)))
-updateSheetState coords expr oldState = runSheet oldState (eval coords expr)
+type CellInput = Either EvalError Double
+
+updateSheetState :: (Coords, Expr) -> SheetState -> (SheetState, Either String (Map Coords CellInput))
+updateSheetState (coords, expr) oldState = runSheet oldState (eval coords expr)
 
 eval :: MonadSheet m => Coords -> Expr -> m ()
 eval coords expr = do
@@ -98,7 +104,7 @@ eval coords expr = do
             expr' <- getExpr coords'
             storeEvalResult coords' (evalCell valueLookup' expr')
 
-evalCell :: (Coords -> Maybe Double) -> Expr -> Either EvalError Double
+evalCell :: (Coords -> Maybe Double) -> Expr -> CellInput
 evalCell valueLookup ex = case ex of
     ERef coords -> case valueLookup coords of
         Just val -> pure val
@@ -130,7 +136,7 @@ data CellResult
     deriving (Show)
 
 cell :: MonadWidget t m
-     => Event t (Either EvalError Double)
+     => Event t CellInput
      -> m (Event t Expr)
 cell evalEv = el "div" $ do
     raw <- textInput def
@@ -144,9 +150,29 @@ cell evalEv = el "div" $ do
     dynText cellResultText
     pure $ fmapMaybe (either (const Nothing) Just) eExpr
 
+sheet :: MonadWidget t m
+      => Map Coords CellInput
+      -> Event t (Map Coords CellInput)
+      -> m (Event t (Coords, Expr))
+sheet list events = do
+    dyn <- listWithKeyShallowDiff list (fmap Just <$> events) $ \c _ e -> el "div" $ do
+        text $ show c
+        cell e
+    dynEvent <- mapDyn (leftmost . map (\(k, e) -> (\ex -> (k, ex)) <$> e) . Map.toList) dyn
+    pure $ switchPromptlyDyn dynEvent
+
 cells :: MonadWidget t m => m ()
 cells = el "div" $ do
-  expr <- cell never
-  dynExpr <- holdDyn "" (show <$> expr)
-  dynText dynExpr
+  let size = Size 2 3
+      initial = Map.fromList
+          [ (Coords i j, Right 0.0) |
+            i <- [0 .. ((width size) - 1)]
+          , j <- [0 .. ((height size) - 1)]
+          ]
+  rec (_, eventMap) <- foldDynWithEvent updateSheetState (newSheetState size, Right Map.empty) updates
+      updates <- sheet initial (fmapMaybe (either (const Nothing) Just) eventMap)
+  -- Errors
+  dynError <- holdDyn "" $ fmapMaybe (either Just (const Nothing)) eventMap
+  text "Error: "
+  dynText dynError
   pure ()

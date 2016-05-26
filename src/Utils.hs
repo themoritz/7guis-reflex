@@ -3,6 +3,8 @@ module Utils where
 import           Reflex
 import           Reflex.Dom
 
+import           Control.Monad.Fix
+
 import           Data.Monoid
 import           Data.Map (Map)
 
@@ -23,8 +25,18 @@ dynCombine3 :: (Reflex t, MonadHold t m)
             -> (a -> b -> c -> d)
             -> m (Dynamic t d)
 dynCombine3 da db dc f = do
-  dg <- combineDyn f da db
-  combineDyn (\g c -> g c) dg dc
+    dg <- combineDyn f da db
+    combineDyn (\g c -> g c) dg dc
 
 monoidGuard :: Monoid a => Bool -> a -> a
 monoidGuard p a = if p then a else mempty
+
+foldDynWithEvent :: (Reflex t, MonadHold t m, MonadFix m)
+                 => (a -> b -> (b, c))
+                 -> (b, c)
+                 -> Event t a
+                 -> m (Dynamic t b, Event t c)
+foldDynWithEvent f start ev = do
+    dynbc <- foldDyn (\a (b, _) -> f a b) start ev
+    dynb <- mapDyn fst dynbc
+    pure (dynb, fmap snd $ updated dynbc)

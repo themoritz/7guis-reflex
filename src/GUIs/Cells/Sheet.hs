@@ -2,6 +2,7 @@
 
 module GUIs.Cells.Sheet
     ( SheetState
+    , newSheetState
     , MonadSheet(..)
     , runSheet
     ) where
@@ -28,6 +29,15 @@ data SheetState = SheetState
     , ssUpdates :: Map Coords (Either EvalError Double)
     }
 
+newSheetState :: Size -> SheetState
+newSheetState size = SheetState
+    { ssSize = size
+    , ssDependencies = emptyGraph size
+    , ssValues = Map.empty
+    , ssExpressions = Map.empty
+    , ssUpdates = Map.empty
+    }
+
 class Monad m => MonadSheet m where
     failEval :: String -> m a
     storeEvalResult :: Coords -> Either EvalError Double -> m ()
@@ -46,9 +56,12 @@ runSheet :: SheetState ->  Sheet a -> (SheetState, Either String (Map Coords (Ei
 runSheet old actions = flip evalState old $ do
     failed <- runEitherT (unSheet actions)
     state <- get
+    let cleanedState = state
+            { ssUpdates = Map.empty
+            }
     case failed of
-        Left err -> pure (state, Left err)
-        Right _ -> pure (state, Right $ ssUpdates state)
+        Left err -> pure (cleanedState, Left err)
+        Right _ -> pure (cleanedState, Right $ ssUpdates state)
 
 instance MonadSheet Sheet where
     failEval err = Sheet $ left err
@@ -68,7 +81,7 @@ instance MonadSheet Sheet where
         exprMap <- gets ssExpressions
         case Map.lookup coords exprMap of
             Just expr -> pure expr
-            Nothing -> failEval "Could not find expression."
+            Nothing -> failEval $ "Could not find expression for " ++ show coords
     updateDependencies coords deps = do
         size <- gets ssSize
         let vertex = toVertex size
