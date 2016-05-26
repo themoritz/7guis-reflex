@@ -21,12 +21,17 @@ executable 7guis-reflex
                      , GUIs.CRUD
                      , GUIs.CircleDrawer
                      , GUIs.Cells
+                     , GUIs.Cells.Sheet
+                     , GUIs.Cells.Types
   other-extensions:    TemplateHaskell
                      , OverloadedStrings
-  build-depends:       base
+  build-depends:       array
+                     , base
                      , containers
                      , Decimal
+                     , either
                      , ghcjs-dom
+                     , mtl
                      , parsec
                      , reflex
                      , reflex-dom
