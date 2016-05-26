@@ -45,7 +45,7 @@ class Monad m => MonadSheet m where
     getValueLookup :: m (Coords -> Maybe Double)
     getExpr :: Coords -> m Expr
     updateDependencies :: Coords -> [Coords] -> m ()
-    getSCCs :: m (Forest Coords)
+    hasCycles :: m Bool
     getLevels :: Coords -> m [[Coords]]
 
 newtype Sheet a = Sheet
@@ -86,12 +86,13 @@ instance MonadSheet Sheet where
         size <- gets ssSize
         let vertex = toVertex size
         modify $ \st -> st
-            { ssDependencies = (ssDependencies st) // [(vertex coords, map vertex deps)]
+            { ssDependencies = ssDependencies st // [(vertex coords, map vertex deps)]
             }
-    getSCCs = do
+    hasCycles = do
         deps <- gets ssDependencies
         size <- gets ssSize
-        pure $ map (fmap (fromVertex size)) $ Graph.scc deps
+        let sccs = map (fmap (fromVertex size)) $ Graph.scc deps
+        pure . not . null $ filter (\t -> length (Tree.flatten t) > 1) sccs
     getLevels coords = do
         deps <- gets ssDependencies
         size <- gets ssSize
