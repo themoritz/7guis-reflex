@@ -24,14 +24,14 @@ data SheetState = SheetState
     , ssValues :: Map Coords Double
     , ssExpressions :: Map Coords Expr
     , ssUpdates :: Map Coords (Either EvalError Double)
-    } deriving (Show)
+    }
 
 newSheetState :: Size -> SheetState
 newSheetState size@(Size w h) = SheetState
     { ssSize = size
     , ssDependencies = mkEmpty (w * h - 1)
                                (\(Coords i j) -> i * w + j)
-                               (\v -> Coords (v `div` w) (v `mod` w))
+                               (\v -> Coords (v `mod` w) (v `div` w))
     , ssValues = Map.empty
     , ssExpressions = Map.empty
     , ssUpdates = Map.empty
@@ -83,8 +83,9 @@ instance MonadSheet Sheet where
     updateDependencies coords deps = do
         when (coords `elem` deps) $ failEval "Cannot reference self."
         depsGraph <- gets ssDependencies
-        when (hasCycle depsGraph) $ failEval "Cyclic references"
-        let depsGraph' = addReferences coords (filter (inbounds size) deps) depsGraph
+        size <- gets ssSize
+        let depsGraph' = addReferences coords (filter (inBounds size) deps) depsGraph
+        when (hasCycle depsGraph') $ failEval "Cyclic references"
         modify $ \st -> st { ssDependencies = depsGraph'}
     getLevels coords = do
         deps <- gets ssDependencies

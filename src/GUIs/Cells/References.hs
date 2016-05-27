@@ -28,7 +28,7 @@ addReferences v refs (ReferenceGraph graph toVertex fromVertex) =
   ReferenceGraph (graph // [(toVertex v, toVertex `map` refs)]) toVertex fromVertex
 
 hasCycle :: ReferenceGraph a -> Bool
-hasCycle (ReferenceGraph graph _ _) = any (not . isFlat) $ scc graph
+hasCycle (ReferenceGraph graph _ _) = not . all isFlat $ scc graph
   where
     isFlat :: Tree a -> Bool
     isFlat tree = length (flatten tree) <= 1
