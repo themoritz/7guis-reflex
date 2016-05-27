@@ -1,7 +1,5 @@
 module GUIs.Cells.Types where
 
-import Data.Graph (Graph, buildG, Vertex)
-
 data Size = Size
   { width :: Int
   , height :: Int
@@ -12,17 +10,8 @@ data Coords = Coords
   , j :: Int
   } deriving (Show, Eq, Ord)
 
-toVertex :: Size -> Coords -> Vertex
-toVertex (Size w _) (Coords i j) = w * j + i
-
-fromVertex :: Size -> Vertex -> Coords
-fromVertex (Size w _) x = Coords (x `mod` w) (x `div` w)
-
 inBounds :: Size -> Coords -> Bool
 inBounds (Size w h) (Coords i j) = i < w && j < h && i >= 0 && j >= 0
-
-emptyGraph :: Size -> Graph
-emptyGraph (Size w h) = buildG (0, w * h - 1) []
 
 -- Expressions
 

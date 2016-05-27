@@ -12,28 +12,26 @@ import Control.Monad.Trans.Either (EitherT, runEitherT, left)
 import Control.Monad.State (State, evalState, get, gets, modify)
 import Control.Monad.State.Class (MonadState)
 
-import Data.Array ((//))
-import Data.Graph (Graph)
-import qualified Data.Graph as Graph
-import Data.Tree (Tree, Forest)
-import qualified Data.Tree as Tree
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 import GUIs.Cells.Types
+import GUIs.Cells.References
 
 data SheetState = SheetState
     { ssSize :: Size
-    , ssDependencies :: Graph
+    , ssDependencies :: ReferenceGraph Coords
     , ssValues :: Map Coords Double
     , ssExpressions :: Map Coords Expr
     , ssUpdates :: Map Coords (Either EvalError Double)
     } deriving (Show)
 
 newSheetState :: Size -> SheetState
-newSheetState size = SheetState
+newSheetState size@(Size w h) = SheetState
     { ssSize = size
-    , ssDependencies = emptyGraph size
+    , ssDependencies = mkEmpty (w * h - 1)
+                               (\(Coords i j) -> i * w + j)
+                               (\v -> Coords (v `div` w) (v `mod` w))
     , ssValues = Map.empty
     , ssExpressions = Map.empty
     , ssUpdates = Map.empty
@@ -46,7 +44,6 @@ class Monad m => MonadSheet m where
     getValueLookup :: m (Coords -> Maybe Double)
     getExpr :: Coords -> m Expr
     updateDependencies :: Coords -> [Coords] -> m ()
-    hasCycles :: m Bool
     getLevels :: Coords -> m [[Coords]]
 
 newtype Sheet a = Sheet
@@ -85,20 +82,10 @@ instance MonadSheet Sheet where
             Nothing -> failEval $ "Could not find expression for " ++ show coords
     updateDependencies coords deps = do
         when (coords `elem` deps) $ failEval "Cannot reference self."
-        size <- gets ssSize
-        let vertex = toVertex size
-            validDeps = filter (inBounds size) deps
-        modify $ \st -> st
-            { ssDependencies = ssDependencies st // [(vertex coords, map vertex validDeps)]
-            }
-    hasCycles = do
-        deps <- gets ssDependencies
-        size <- gets ssSize
-        let sccs = map (fmap (fromVertex size)) $ Graph.scc deps
-        pure . not . null $ filter (\t -> length (Tree.flatten t) > 1) sccs
+        depsGraph <- gets ssDependencies
+        when (hasCycle depsGraph) $ failEval "Cyclic references"
+        let depsGraph' = addReferences coords (filter (inbounds size) deps) depsGraph
+        modify $ \st -> st { ssDependencies = depsGraph'}
     getLevels coords = do
         deps <- gets ssDependencies
-        size <- gets ssSize
-        case Graph.dfs (Graph.transposeG deps) [toVertex size coords] of
-            [tree] -> pure $ tail $ Tree.levels $ fromVertex size <$> tree
-            _ -> failEval "Expected one forest for levels"
+        maybe (failEval "Expected one forest for levels") pure $ levelsAtVertex deps coords

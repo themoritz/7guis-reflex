@@ -8,17 +8,9 @@ import           Reflex
 import           Reflex.Dom
 
 import Control.Monad (when)
-import Control.Monad.Trans.Either (EitherT, runEitherT, left)
-import Control.Monad.State (State, evalState, get, gets, modify)
-import Control.Monad.State.Class (MonadState)
 
 import Data.Traversable (for)
 import Data.Foldable (for_)
-import Data.Either
-import Data.Graph (Graph)
-import qualified Data.Graph as Graph
-import Data.Tree (Tree, Forest)
-import qualified Data.Tree as Tree
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -26,7 +18,6 @@ import Text.Parsec hiding (State)
 import qualified Text.Parsec.Token as P
 import Text.Parsec.Expr
 import Text.Parsec.Language (emptyDef)
-import Text.Parsec.Char
 import Text.Parsec.String (Parser)
 
 import GUIs.Cells.Sheet
@@ -92,8 +83,6 @@ eval :: MonadSheet m => Coords -> Expr -> m ()
 eval coords expr = do
     storeExpression coords expr
     updateDependencies coords $ getExprDeps expr
-    hasCycles' <- hasCycles
-    when hasCycles' $ failEval "Cyclic references"
     valueLookup <- getValueLookup
     storeEvalResult coords (evalCell valueLookup expr)
     levels <- getLevels coords
