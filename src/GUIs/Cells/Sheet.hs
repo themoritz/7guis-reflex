@@ -7,6 +7,7 @@ module GUIs.Cells.Sheet
     , runSheet
     ) where
 
+import Control.Monad (when)
 import Control.Monad.Trans.Either (EitherT, runEitherT, left)
 import Control.Monad.State (State, evalState, get, gets, modify)
 import Control.Monad.State.Class (MonadState)
@@ -27,7 +28,7 @@ data SheetState = SheetState
     , ssValues :: Map Coords Double
     , ssExpressions :: Map Coords Expr
     , ssUpdates :: Map Coords (Either EvalError Double)
-    }
+    } deriving (Show)
 
 newSheetState :: Size -> SheetState
 newSheetState size = SheetState
@@ -83,10 +84,12 @@ instance MonadSheet Sheet where
             Just expr -> pure expr
             Nothing -> failEval $ "Could not find expression for " ++ show coords
     updateDependencies coords deps = do
+        when (coords `elem` deps) $ failEval "Cannot reference self."
         size <- gets ssSize
         let vertex = toVertex size
+            validDeps = filter (inBounds size) deps
         modify $ \st -> st
-            { ssDependencies = ssDependencies st // [(vertex coords, map vertex deps)]
+            { ssDependencies = ssDependencies st // [(vertex coords, map vertex validDeps)]
             }
     hasCycles = do
         deps <- gets ssDependencies
@@ -97,5 +100,5 @@ instance MonadSheet Sheet where
         deps <- gets ssDependencies
         size <- gets ssSize
         case Graph.dfs (Graph.transposeG deps) [toVertex size coords] of
-            [tree] -> pure $ Tree.levels $ fromVertex size <$> tree
+            [tree] -> pure $ tail $ Tree.levels $ fromVertex size <$> tree
             _ -> failEval "Expected one forest for levels"

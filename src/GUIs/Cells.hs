@@ -92,7 +92,8 @@ eval :: MonadSheet m => Coords -> Expr -> m ()
 eval coords expr = do
     storeExpression coords expr
     updateDependencies coords $ getExprDeps expr
-    when hasCycles $ failEval "Cyclic references"
+    hasCycles' <- hasCycles
+    when hasCycles' $ failEval "Cyclic references"
     valueLookup <- getValueLookup
     storeEvalResult coords (evalCell valueLookup expr)
     levels <- getLevels coords
@@ -153,15 +154,14 @@ sheet :: MonadWidget t m
       -> Event t (Map Coords CellInput)
       -> m (Event t (Coords, Expr))
 sheet list events = do
-    dyn <- listWithKeyShallowDiff list (fmap Just <$> events) $ \c _ e -> el "div" $ do
-        text $ show c
-        cell e
+    dyn <- listWithKeyShallowDiff list (fmap Just <$> events) $ \_ _ e -> cell e
     dynEvent <- mapDyn (leftmost . map (\(k, e) -> (\ex -> (k, ex)) <$> e) . Map.toList) dyn
     pure $ switchPromptlyDyn dynEvent
 
 cells :: MonadWidget t m => m ()
 cells = el "div" $ do
-  let size = Size 2 3
+  text "Reference other cells with {i,j}, top-left is {0,0}"
+  let size = Size 1 10
       initial = Map.fromList
           [ (Coords i j, Right 0.0) |
             i <- [0 .. (width size - 1)]
