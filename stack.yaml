@@ -1,5 +1,4 @@
 resolver: lts-6.0
-# compiler: ghcjs-0.2.0.20160202_ghc-7.10.2
 compiler: ghcjs-0.2.0.20160414_ghc-7.10.3
 compiler-check: match-exact
 

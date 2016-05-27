@@ -21,9 +21,10 @@ executable 7guis-reflex
                      , GUIs.CRUD
                      , GUIs.CircleDrawer
                      , GUIs.Cells
+                     , GUIs.Cells.Parser
+                     , GUIs.Cells.References
                      , GUIs.Cells.Sheet
                      , GUIs.Cells.Types
-                     , GUIs.Cells.References
   other-extensions:    TemplateHaskell
                      , OverloadedStrings
   build-depends:       array
