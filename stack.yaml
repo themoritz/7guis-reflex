@@ -1,5 +1,7 @@
-resolver: lts-5.13
-compiler: ghcjs-0.2.0.20160202_ghc-7.10.2
+resolver: lts-6.0
+# compiler: ghcjs-0.2.0.20160202_ghc-7.10.2
+compiler: ghcjs-0.2.0.20160414_ghc-7.10.3
+compiler-check: match-exact
 
 packages:
 - location: .
@@ -23,5 +25,6 @@ require-stack-version: ">= 0.1.8"
 setup-info:
   ghcjs:
     source:
-      ghcjs-0.2.0.20160202_ghc-7.10.2:
-        url: "http://ghcjs.luite.com/master-20160202.tar.gz"
+      ghcjs-0.2.0.20160414_ghc-7.10.3:
+        url: https://s3.amazonaws.com/ghcjs/ghcjs-0.2.0.20160414_ghc-7.10.3.tar.gz
+        sha1: 6d6f307503be9e94e0c96ef1308c7cf224d06be3
