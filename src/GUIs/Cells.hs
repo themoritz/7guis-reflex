@@ -92,9 +92,7 @@ eval :: MonadSheet m => Coords -> Expr -> m ()
 eval coords expr = do
     storeExpression coords expr
     updateDependencies coords $ getExprDeps expr
-    sccs <- getSCCs
-    when (length (filter (\t -> length (Tree.flatten t) > 1) sccs) > 0) $
-        failEval "Cyclic references"
+    when hasCycles $ failEval "Cyclic references"
     valueLookup <- getValueLookup
     storeEvalResult coords (evalCell valueLookup expr)
     levels <- getLevels coords
@@ -166,8 +164,8 @@ cells = el "div" $ do
   let size = Size 2 3
       initial = Map.fromList
           [ (Coords i j, Right 0.0) |
-            i <- [0 .. ((width size) - 1)]
-          , j <- [0 .. ((height size) - 1)]
+            i <- [0 .. (width size - 1)]
+          , j <- [0 .. (height size - 1)]
           ]
   rec (_, eventMap) <- foldDynWithEvent updateSheetState (newSheetState size, Right Map.empty) updates
       updates <- sheet initial (fmapMaybe (either (const Nothing) Just) eventMap)
