@@ -1,5 +1,7 @@
 module GUIs.Cells.Types where
 
+import Data.Decimal
+
 data Size = Size
   { width :: Int
   , height :: Int
@@ -30,8 +32,7 @@ data Expr
     = ERef Coords
     | EBinOp BinOp Expr Expr
     | EUnOp UnOp Expr
-    | ENumber Double
-    | EEmpty
+    | ENumber Decimal
     deriving (Show)
 
 getExprDeps :: Expr -> [Coords]
@@ -39,12 +40,28 @@ getExprDeps (ERef ref) = [ref]
 getExprDeps (EBinOp _ l r) = getExprDeps l ++ getExprDeps r
 getExprDeps (EUnOp _ sub) = getExprDeps sub
 getExprDeps (ENumber _) = []
-getExprDeps EEmpty = []
 
--- Eval
+-- Cell result
+
+type CellResult = Either CellError CellOk
+
+data CellOk
+    = Number Decimal
+    | Empty
+    deriving (Show)
+
+data CellError
+    = EvalError EvalError
+    | ParseError String
+    deriving (Show)
+
+type EvalResult = Either EvalError Decimal
 
 data EvalError
-    = EvalRefNotFound Coords
-    | EvalDivByZero
-    | EvalEmpty
+    = RefNotFound Coords
+    | DivByZero
     deriving (Show)
+
+embedEvalResult :: EvalResult -> CellResult
+embedEvalResult (Left err) = Left $ EvalError err
+embedEvalResult (Right x) = Right $ Number x

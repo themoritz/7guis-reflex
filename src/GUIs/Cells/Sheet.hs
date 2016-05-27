@@ -12,6 +12,7 @@ import Control.Monad.Trans.Either (EitherT, runEitherT, left)
 import Control.Monad.State (State, evalState, get, gets, modify)
 import Control.Monad.State.Class (MonadState)
 
+import Data.Decimal
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -21,9 +22,9 @@ import GUIs.Cells.References
 data SheetState = SheetState
     { ssSize :: Size
     , ssDependencies :: ReferenceGraph Coords
-    , ssValues :: Map Coords Double
+    , ssValues :: Map Coords Decimal
     , ssExpressions :: Map Coords Expr
-    , ssUpdates :: Map Coords (Either EvalError Double)
+    , ssUpdates :: Map Coords CellResult
     }
 
 newSheetState :: Size -> SheetState
@@ -39,9 +40,9 @@ newSheetState size@(Size w h) = SheetState
 
 class Monad m => MonadSheet m where
     failEval :: String -> m a
-    storeEvalResult :: Coords -> Either EvalError Double -> m ()
+    storeCellResult :: Coords -> CellResult -> m ()
     storeExpression :: Coords -> Expr -> m ()
-    getValueLookup :: m (Coords -> Maybe Double)
+    getValueLookup :: m (Coords -> Maybe Decimal)
     getExpr :: Coords -> m Expr
     updateDependencies :: Coords -> [Coords] -> m ()
     getLevels :: Coords -> m [[Coords]]
@@ -50,7 +51,7 @@ newtype Sheet a = Sheet
     { unSheet :: EitherT String (State SheetState) a
     } deriving (Functor, Applicative, Monad, MonadState SheetState)
 
-runSheet :: SheetState ->  Sheet a -> (SheetState, Either String (Map Coords (Either EvalError Double)))
+runSheet :: SheetState ->  Sheet a -> (SheetState, Either String (Map Coords CellResult))
 runSheet old actions = flip evalState old $ do
     failed <- runEitherT (unSheet actions)
     state <- get
@@ -63,10 +64,10 @@ runSheet old actions = flip evalState old $ do
 
 instance MonadSheet Sheet where
     failEval err = Sheet $ left err
-    storeEvalResult coords result = modify $ \st -> st
+    storeCellResult coords result = modify $ \st -> st
         { ssValues = case result of
-              Left _ -> ssValues st
-              Right x -> Map.insert coords x (ssValues st)
+              Right (Number x) -> Map.insert coords x (ssValues st)
+              _ -> Map.delete coords (ssValues st)
         , ssUpdates = Map.insert coords result (ssUpdates st)
         }
     storeExpression coords expr = modify $ \st -> st
@@ -86,7 +87,7 @@ instance MonadSheet Sheet where
         size <- gets ssSize
         let depsGraph' = addReferences coords (filter (inBounds size) deps) depsGraph
         when (hasCycle depsGraph') $ failEval "Cyclic references"
-        modify $ \st -> st { ssDependencies = depsGraph'}
+        modify $ \st -> st { ssDependencies = depsGraph' }
     getLevels coords = do
         deps <- gets ssDependencies
-        maybe (failEval "Expected one forest for levels") pure $ levelsAtVertex deps coords
+        maybe (failEval "Expected one forest for levels") (pure . tail) $ levelsAtVertex deps coords
