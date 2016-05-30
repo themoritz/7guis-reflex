@@ -14,3 +14,24 @@ h1 {
   margin-bottom: 0px;
   font-size: 20pt;
 }
+
+.cellInput > input {
+  font-family: monospace;
+  margin: 0px;
+  width: 240px;
+}
+
+.cellResult {
+  height: 33.33px;
+  overflow: hidden;
+}
+
+.cell {
+  position: absolute;
+  width: 240px;
+  height: 90px;
+}
+
+.sheet {
+  position: relative;
+}

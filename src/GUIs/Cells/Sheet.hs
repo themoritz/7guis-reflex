@@ -31,7 +31,7 @@ newSheetState :: Size -> SheetState
 newSheetState size@(Size w h) = SheetState
     { ssSize = size
     , ssDependencies = mkEmpty (w * h - 1)
-                               (\(Coords i j) -> i * w + j)
+                               (\(Coords i j) -> j * w + i)
                                (\v -> Coords (v `mod` w) (v `div` w))
     , ssValues = Map.empty
     , ssExpressions = Map.empty

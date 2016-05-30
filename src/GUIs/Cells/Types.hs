@@ -1,6 +1,7 @@
 module GUIs.Cells.Types where
 
 import Data.Decimal
+import Data.Monoid
 
 data Size = Size
   { width :: Int
@@ -65,3 +66,10 @@ data EvalError
 embedEvalResult :: EvalResult -> CellResult
 embedEvalResult (Left err) = Left $ EvalError err
 embedEvalResult (Right x) = Right $ Number x
+
+showCellResult :: CellResult -> String
+showCellResult (Left (EvalError (RefNotFound (Coords i j)))) = "{" <> show i <> "," <> show j <> "} not defined"
+showCellResult (Left (EvalError DivByZero)) = "Division by zero"
+showCellResult (Left (ParseError _)) = "Cannot parse expression"
+showCellResult (Right (Number x)) = "=" <> show x
+showCellResult (Right Empty) = "(empty)"

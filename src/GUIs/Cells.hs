@@ -9,6 +9,7 @@ import           Reflex.Dom
 
 import           Control.Monad    (when)
 
+import           Data.Monoid ((<>))
 import           Data.Decimal
 import           Data.Traversable (for)
 import           Data.Foldable    (for_)
@@ -71,36 +72,43 @@ evalCell valueLookup ex = case ex of
 -- Reflex stuff
 
 cell :: MonadWidget t m
-     => CellResult
+     => Coords
+     -> CellResult
      -> Event t CellResult
      -> m (Event t String)
-cell initialResult resultUpdate = el "div" $ do
-    raw <- textInput def
-    cellResult <- holdDyn initialResult resultUpdate
-    cellResultText <- mapDyn show cellResult
-    dynText cellResultText
-    pure $ _textInput_input raw
+cell (Coords i j) initialResult resultUpdate =
+    let attrs = Map.fromList
+            [ ("style", "left:" <> show (i * 250) <> "px;top:" <> show (j * 90) <> "px")
+            , ("class", "cell")
+            ]
+    in elAttr "div" attrs $ do
+      raw <- elClass "div" "cellInput" $ textInput def
+      cellResult <- holdDyn initialResult resultUpdate
+      cellResultText <- mapDyn showCellResult cellResult
+      elClass "div" "cellResult" $ dynText cellResultText
+      pure $ _textInput_input raw
 
 sheet :: MonadWidget t m
       => Map Coords CellResult
       -> Event t (Map Coords CellResult)
       -> m (Event t (Coords, String))
-sheet initialResults updateResults = do
-    dyn <- listWithKeyShallowDiff initialResults (fmap Just <$> updateResults) $ \_ v e -> cell v e
+sheet initialResults updateResults = elClass "div" "sheet" $ do
+    dyn <- listWithKeyShallowDiff initialResults (fmap Just <$> updateResults) $ \c v e -> cell c v e
     dynEvent <- mapDyn (leftmost . map (\(k, e) -> (\ex -> (k, ex)) <$> e) . Map.toList) dyn
     pure $ switchPromptlyDyn dynEvent
 
 cells :: MonadWidget t m => m ()
-cells = el "div" $ do
-  text "Reference other cells with {i,j}, for example top-left is {0,0}."
-  let size = Size 1 10
+cells = el "div" $ mdo
+  text "Reference other cells with {i,j}, for example top-left is {0,0}. "
+  dynError <- holdDyn "" $ fmap (either ("Error: " ++) (const "")) eventMap
+  dynText dynError
+
+  let size = Size 4 8
       initial = Map.fromList
           [ (Coords i j, Right Empty) |
             i <- [0 .. (width size - 1)]
           , j <- [0 .. (height size - 1)]
           ]
-  rec (_, eventMap) <- foldDynWithEvent updateSheetState (newSheetState size, Right initial) updates
-      updates <- sheet initial (fmapMaybe (either (const Nothing) Just) eventMap)
-  -- Errors
-  dynError <- holdDyn "" $ fmap (either ("Error: " ++) (const "")) eventMap
-  dynText dynError
+  (_, eventMap) <- foldDynWithEvent updateSheetState (newSheetState size, Right initial) updates
+  updates <- sheet initial (fmapMaybe (either (const Nothing) Just) eventMap)
+  pure ()
