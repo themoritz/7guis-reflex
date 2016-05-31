@@ -1,5 +1,5 @@
 body, input, button, select {
-  font-size: 16pt;
+  font-size: 12pt;
   line-height: 1.6;
   font-weight: 400;
   font-family: "Raleway", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -18,7 +18,7 @@ h1 {
 .cellInput > input {
   font-family: monospace;
   margin: 0px;
-  width: 240px;
+  width: 190px;
 }
 
 .cellResult {
@@ -28,7 +28,7 @@ h1 {
 
 .cell {
   position: absolute;
-  width: 240px;
+  width: 190px;
   height: 90px;
 }
 

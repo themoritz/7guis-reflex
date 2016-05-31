@@ -78,7 +78,7 @@ cell :: MonadWidget t m
      -> m (Event t String)
 cell (Coords i j) initialResult resultUpdate =
     let attrs = Map.fromList
-            [ ("style", "left:" <> show (i * 250) <> "px;top:" <> show (j * 90) <> "px")
+            [ ("style", "left:" <> show (i * 200) <> "px;top:" <> show (j * 70) <> "px")
             , ("class", "cell")
             ]
     in elAttr "div" attrs $ do
