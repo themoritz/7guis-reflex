@@ -11,8 +11,8 @@ packages:
   extra-dep: true
 
 - location:
-    git: https://github.com/ryantrinkle/reflex-dom.git
-    commit: 89117143f5f19d95fba55cfb56a3577ba15e7aea
+    git: https://github.com/themoritz/reflex-dom.git
+    commit: 8c6bacd372d1db385c954c40f4a59789f1f50fb0
   extra-dep: true
 
 extra-deps:

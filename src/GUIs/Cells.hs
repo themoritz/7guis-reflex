@@ -103,7 +103,7 @@ cells = el "div" $ mdo
   dynError <- holdDyn "" $ fmap (either ("Error: " ++) (const "")) eventMap
   dynText dynError
 
-  let size = Size 4 8
+  let size = Size 8 12
       initial = Map.fromList
           [ (Coords i j, Right Empty) |
             i <- [0 .. (width size - 1)]
