@@ -7,18 +7,15 @@ module GUIs.CRUD
 import           Reflex
 import           Reflex.Dom
 
-import           Data.Maybe
 import           Data.Map    (Map)
 import qualified Data.Map    as Map
+import           Data.Maybe
 import           Data.Monoid
 
-import Utils
-import Widgets
+import           Utils
+import           Widgets
 
-data Person = Person
-    { personName    :: String
-    , personSurname :: String
-    }
+data Person = Person String String -- name surname
 
 instance Show Person where
     show (Person name surname) = surname <> ", " <> name

@@ -7,18 +7,18 @@ module GUIs.Cells
 import           Reflex
 import           Reflex.Dom
 
-import           Control.Monad    (when)
+import           Control.Monad     (when)
 
-import           Data.Monoid ((<>))
 import           Data.Decimal
-import           Data.Traversable (for)
-import           Data.Foldable    (for_)
-import           Data.Map         (Map)
-import qualified Data.Map         as Map
+import           Data.Foldable     (for_)
+import           Data.Map          (Map)
+import qualified Data.Map          as Map
+import           Data.Monoid       ((<>))
+import           Data.Traversable  (for)
 
+import           GUIs.Cells.Parser
 import           GUIs.Cells.Sheet
 import           GUIs.Cells.Types
-import           GUIs.Cells.Parser
 
 import           Utils
 
@@ -93,8 +93,8 @@ sheet :: MonadWidget t m
       -> Event t (Map Coords CellResult)
       -> m (Event t (Coords, String))
 sheet initialResults updateResults = elClass "div" "sheet" $ do
-    dyn <- listWithKeyShallowDiff initialResults (fmap Just <$> updateResults) $ \c v e -> cell c v e
-    dynEvent <- mapDyn (leftmost . map (\(k, e) -> (\ex -> (k, ex)) <$> e) . Map.toList) dyn
+    dynEventMap <- listWithKeyShallowDiff initialResults (fmap Just <$> updateResults) $ \c v e -> cell c v e
+    dynEvent <- mapDyn (leftmost . map (\(k, e) -> (\ex -> (k, ex)) <$> e) . Map.toList) dynEventMap
     pure $ switchPromptlyDyn dynEvent
 
 cells :: MonadWidget t m => m ()

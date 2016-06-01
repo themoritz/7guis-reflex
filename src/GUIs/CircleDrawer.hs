@@ -7,36 +7,31 @@ module GUIs.CircleDrawer
 import           Reflex
 import           Reflex.Dom
 
-import           Data.List (find)
+import           Data.List               (find)
+import           Data.Map                (Map)
+import qualified Data.Map                as Map
 import           Data.Monoid
-import           Data.Map    (Map)
-import qualified Data.Map    as Map
 
-import GUIs.CircleDrawer.Stack
+import           GUIs.CircleDrawer.Stack
 
-import Utils
-import Widgets
+import           Utils
+import           Widgets
 
-data Circle = Circle
-    { circleX      :: Int
-    , circleY      :: Int
-    , circleRadius :: Int
-    }
+data Circle = Circle Int Int Int -- x y radius
 
-data Circles = Circles
-    { circlesMap      :: Map Int Circle
-    , circlesIndex    :: Int
-    , circlesSelected :: Int
-    }
+data State = State (Map Int Circle) Int Int -- map currentIndex selected
 
-initialCircles :: Circles
-initialCircles = Circles Map.empty 0 0
+circlesMap :: State -> Map Int Circle
+circlesMap (State m _ _) = m
 
-selected :: Circles -> Maybe Int
-selected (Circles circles _ sel) = sel <$ Map.lookup sel circles
+initialState :: State
+initialState = State Map.empty 0 0
 
-trySelect :: (Int, Int) -> Circles -> Maybe Int
-trySelect (x, y) (Circles circles _ _) =
+getSelected :: State -> Maybe Int
+getSelected (State circles _ sel) = sel <$ Map.lookup sel circles
+
+trySelect :: (Int, Int) -> State -> Maybe Int
+trySelect (x, y) (State circles _ _) =
     fst <$> find withinRadius (reverse $ Map.toList circles)
   where
     withinRadius (_, Circle cx cy r) =
@@ -44,22 +39,22 @@ trySelect (x, y) (Circles circles _ _) =
             dy = y - cy
         in  dx * dx + dy * dy < r * r
 
-data CircleCommand
+data Command
     = CirclePlace Circle
     | CircleSelect Int
     | CircleAdjust Int Int   -- id radius
 
-updateCircles :: CircleCommand -> Circles -> Circles
-updateCircles cmd (Circles circles i sel) = case cmd of
-    CirclePlace c      -> Circles (Map.insert i c circles) (i + 1) sel
-    CircleSelect s     -> Circles circles i s
-    CircleAdjust sel r -> Circles (Map.update (\c -> Just $ c { circleRadius = r }) sel circles) i sel
+updateState :: Command -> State -> State
+updateState cmd (State circles i sel) = case cmd of
+    CirclePlace c      -> State (Map.insert i c circles) (i + 1) sel
+    CircleSelect s     -> State circles i s
+    CircleAdjust s r -> State (Map.update (\(Circle x y _) -> Just $ Circle x y r) s circles) i sel
 
 circle :: MonadWidget t m
        => Dynamic t Bool -> Dynamic t Circle
        -> m (Event t ())
-circle selected circle = do
-    attr <- dynCombine selected circle $ \s (Circle x y r) ->
+circle selected circleDyn = do
+    attr <- dynCombine selected circleDyn $ \s (Circle x y r) ->
         ( "cx" =: show x <> "cy" =: show y <> "r" =: show r
        <> "fill" =: (if s then "gray" else "white")
        <> "stroke" =: "black"
@@ -70,8 +65,8 @@ circle selected circle = do
 circleDrawer :: MonadWidget t m => m ()
 circleDrawer = el "div" $ mdo
     stack <- foldDyn updateStack initialStack commands
-    state <- mapDyn (foldStack initialCircles updateCircles) stack
-    selectedCircle <- mapDyn selected state
+    state <- mapDyn (foldStack initialState updateState) stack
+    selectedCircle <- mapDyn getSelected state
     circles <- mapDyn circlesMap state
     enableUndo <- mapDyn undoPossible stack
     enableRedo <- mapDyn redoPossible stack
@@ -81,7 +76,7 @@ circleDrawer = el "div" $ mdo
     changeRadius <- readableInput def
     el "br" $ pure ()
     (svg, _) <- svgAttr' "svg" ("width" =: "600" <> "height" =: "300") $ do
-        selectableList selectedCircle circles circle
+        _ <- selectableList selectedCircle circles circle
         svgAttr "rect" ("width" =: "600" <> "height" =: "300" <> "stroke" =: "black" <> "fill" =: "none") $ pure ()
     let svgClick = domEvent (Mouseup RelativeToOffset) svg
         svgEvent = attachWith (\st (x,y) -> StackPush $ case trySelect (x,y) st of

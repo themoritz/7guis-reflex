@@ -1,20 +1,19 @@
-{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE LambdaCase #-}
 
 module GUIs.FlightBooker
     ( flightBooker
     ) where
 
-import Reflex
-import Reflex.Dom
+import           Reflex
+import           Reflex.Dom
 
-import           Data.Map (Map)
-import qualified Data.Map as Map
-import           Data.Monoid
+import           Data.Map    (Map)
+import qualified Data.Map    as Map
 import           Data.Maybe
+import           Data.Monoid
 
-import Widgets
-import Utils
+import           Utils
+import           Widgets
 
 data FlightType
     = OneWay

@@ -4,10 +4,9 @@ module GUIs.TemperatureConverter
     ( temperatureConverter
     ) where
 
-import           Reflex
 import           Reflex.Dom
 
-import Widgets
+import           Widgets
 
 temperatureConverter :: MonadWidget t m => m ()
 temperatureConverter = el "div" $ mdo

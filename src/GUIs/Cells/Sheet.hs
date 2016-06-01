@@ -7,24 +7,25 @@ module GUIs.Cells.Sheet
     , runSheet
     ) where
 
-import Control.Monad (when)
-import Control.Monad.Trans.Either (EitherT, runEitherT, left)
-import Control.Monad.State (State, evalState, get, gets, modify)
-import Control.Monad.State.Class (MonadState)
+import           Control.Monad              (when)
+import           Control.Monad.State        (State, evalState, get, gets,
+                                             modify)
+import           Control.Monad.State.Class  (MonadState)
+import           Control.Monad.Trans.Either (EitherT, left, runEitherT)
 
-import Data.Decimal
-import Data.Map (Map)
-import qualified Data.Map as Map
+import           Data.Decimal
+import           Data.Map                   (Map)
+import qualified Data.Map                   as Map
 
-import GUIs.Cells.Types
-import GUIs.Cells.References
+import           GUIs.Cells.References
+import           GUIs.Cells.Types
 
 data SheetState = SheetState
-    { ssSize :: Size
+    { ssSize         :: Size
     , ssDependencies :: ReferenceGraph Coords
-    , ssValues :: Map Coords Decimal
-    , ssExpressions :: Map Coords Expr
-    , ssUpdates :: Map Coords CellResult
+    , ssValues       :: Map Coords Decimal
+    , ssExpressions  :: Map Coords Expr
+    , ssUpdates      :: Map Coords CellResult
     }
 
 newSheetState :: Size -> SheetState

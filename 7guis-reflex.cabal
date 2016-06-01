@@ -41,4 +41,5 @@ executable 7guis-reflex
                      , safe
                      , time
   hs-source-dirs:      src
+  ghcjs-options:       -Wall
   default-language:    Haskell2010

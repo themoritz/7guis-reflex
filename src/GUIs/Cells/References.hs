@@ -7,18 +7,14 @@ module GUIs.Cells.References
   ) where
 
 import           Data.Array ((//))
-import           Data.Graph (Graph, Vertex, buildG, scc, dfs, transposeG)
+import           Data.Graph (Graph, Vertex, buildG, dfs, scc, transposeG)
 import           Data.Tree  (Tree, flatten, levels)
 
 type ToVertex a = a -> Vertex
 type FromVertex a = Vertex -> a
 type NCells = Int
 
-data ReferenceGraph a = ReferenceGraph
-  { rgGraph      :: Graph
-  , rgToVertex   :: ToVertex a
-  , rgFromVertex :: FromVertex a
-  }
+data ReferenceGraph a = ReferenceGraph Graph (ToVertex a) (FromVertex a)
 
 mkEmpty :: NCells -> ToVertex a -> FromVertex a -> ReferenceGraph a
 mkEmpty n = ReferenceGraph (buildG (0, n) [])

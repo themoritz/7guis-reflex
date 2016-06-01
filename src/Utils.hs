@@ -5,8 +5,7 @@ import           Reflex.Dom
 
 import           Control.Monad.Fix
 
-import           Data.Monoid
-import           Data.Map (Map)
+import           Data.Map          (Map)
 
 svgAttr' :: MonadWidget t m => String -> Map String String -> m a -> m (El t, a)
 svgAttr' name attrs = svgDynAttr' name (constDyn attrs)
@@ -45,4 +44,4 @@ foldDynWithEvent :: (Reflex t, MonadHold t m, MonadFix m)
 foldDynWithEvent f start ev = do
     dynbc <- foldDyn (\a (b, _) -> f a b) start ev
     dynb <- mapDyn fst dynbc
-    pure (dynb, fmap snd $ updated dynbc)
+    pure (dynb, snd <$> updated dynbc)

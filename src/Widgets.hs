@@ -1,20 +1,20 @@
-{-# LANGUAGE RecursiveDo  #-}
+{-# LANGUAGE RecursiveDo #-}
 
 module Widgets where
 
 import           Reflex
 import           Reflex.Dom
 
-import           Data.Maybe
 import           Data.Map         (Map)
 import qualified Data.Map         as Map
+import           Data.Maybe
 import           Data.Monoid
 import           Data.Time.Clock  (UTCTime)
-import           Data.Time.Format (parseTimeM, defaultTimeLocale)
+import           Data.Time.Format (defaultTimeLocale, parseTimeM)
 
 import           Text.Read        (readMaybe)
 
-import Utils
+import           Utils
 
 readableInput :: (MonadWidget t m, Read a) => TextInputConfig t -> m (Event t a)
 readableInput conf = do

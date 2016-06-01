@@ -1,17 +1,16 @@
 module Main where
 
-import           Reflex
 import           Reflex.Dom
 
-import           Data.Time.Clock  (getCurrentTime)
+import           Data.Time.Clock           (getCurrentTime)
 
-import           GUIs.Counter
-import           GUIs.TemperatureConverter
-import           GUIs.FlightBooker
-import           GUIs.Timer
-import           GUIs.CRUD
-import           GUIs.CircleDrawer
 import           GUIs.Cells
+import           GUIs.CircleDrawer
+import           GUIs.Counter
+import           GUIs.CRUD
+import           GUIs.FlightBooker
+import           GUIs.TemperatureConverter
+import           GUIs.Timer
 
 main :: IO ()
 main = do

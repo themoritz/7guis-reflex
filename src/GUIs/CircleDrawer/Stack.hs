@@ -8,10 +8,7 @@ module GUIs.CircleDrawer.Stack
     , foldStack
     ) where
 
-data Stack a = Stack
-    { stackStack     :: [a]
-    , stackUndoSteps :: Int
-    }
+data Stack a = Stack [a] Int -- stack numberUndoSteps
 
 initialStack :: Stack a
 initialStack = Stack [] 0

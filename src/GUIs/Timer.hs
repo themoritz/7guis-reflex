@@ -8,10 +8,9 @@ import           Reflex
 import           Reflex.Dom
 
 import           Data.Decimal
-import           Data.Time.Clock  (UTCTime, getCurrentTime, diffUTCTime)
-import           Data.Time.Format (parseTimeM, defaultTimeLocale)
+import           Data.Time.Clock (UTCTime)
 
-import Widgets
+import           Widgets
 
 
 data TimerEvent
@@ -31,8 +30,8 @@ timer t0 = el "div" $ do
               , const TimerReset <$> reset
               ]
 
-        elapsed <- foldDyn (\ev current -> case ev of
-                TimerTick limit' -> if current + 0.1 <= limit' then current + 0.1 else current
+        elapsed <- foldDyn (\ev curr -> case ev of
+                TimerTick limit' -> if curr + 0.1 <= limit' then curr + 0.1 else curr
                 TimerReset       -> 0.0
             ) (0.0 :: Decimal) events
 

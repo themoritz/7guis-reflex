@@ -1,17 +1,16 @@
 module GUIs.Cells.Types where
 
-import Data.Decimal
-import Data.Monoid
+import           Data.Decimal
+import           Data.Monoid
 
 data Size = Size
-  { width :: Int
+  { width  :: Int
   , height :: Int
   } deriving (Show)
 
-data Coords = Coords
-  { i :: Int
-  , j :: Int
-  } deriving (Show, Eq, Ord)
+data Coords
+  = Coords Int Int -- col row
+  deriving (Show, Eq, Ord)
 
 inBounds :: Size -> Coords -> Bool
 inBounds (Size w h) (Coords i j) = i < w && j < h && i >= 0 && j >= 0
