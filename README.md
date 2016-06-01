@@ -1,6 +1,6 @@
 # 7guis-reflex
 
-[Live Demo](http://reflex.mdrexl.net/)
+[Live Demo](http://www.mdrexl.net/reflex/7guis/)
 
 An implementation of the [7GUIs](https://github.com/eugenkiss/7guis/wiki) in [reflex-dom](https://hackage.haskell.org/package/reflex-dom).
 
