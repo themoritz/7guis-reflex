@@ -9,7 +9,13 @@ import           Data.Monoid
 import           Data.Map (Map)
 
 svgAttr' :: MonadWidget t m => String -> Map String String -> m a -> m (El t, a)
-svgAttr' name attrs = elDynAttrNS' (Just "http://www.w3.org/2000/svg") name (constDyn attrs)
+svgAttr' name attrs = svgDynAttr' name (constDyn attrs)
+
+svgDynAttr' :: MonadWidget t m => String -> Dynamic t (Map String String) -> m a -> m (El t, a)
+svgDynAttr' = elDynAttrNS' (Just "http://www.w3.org/2000/svg")
+
+svgDynAttr :: MonadWidget t m => String -> Dynamic t (Map String String) -> m a -> m a
+svgDynAttr name attrs childs = snd <$> svgDynAttr' name attrs childs
 
 svgAttr :: MonadWidget t m => String -> Map String String -> m a -> m a
 svgAttr name attrs childs = snd <$> svgAttr' name attrs childs

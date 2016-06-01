@@ -12,7 +12,7 @@ packages:
 
 - location:
     git: https://github.com/themoritz/reflex-dom.git
-    commit: 8c6bacd372d1db385c954c40f4a59789f1f50fb0
+    commit: bb49bbf
   extra-dep: true
 
 extra-deps:

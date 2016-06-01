@@ -10,6 +10,10 @@ input, button, select {
   margin: 5px;
 }
 
+button:disabled {
+  color: gray;
+}
+
 h1 {
   margin-bottom: 0px;
   font-size: 20pt;

@@ -20,6 +20,7 @@ executable 7guis-reflex
                      , GUIs.Timer
                      , GUIs.CRUD
                      , GUIs.CircleDrawer
+                     , GUIs.CircleDrawer.Stack
                      , GUIs.Cells
                      , GUIs.Cells.Parser
                      , GUIs.Cells.References
